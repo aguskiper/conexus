@@ -1,0 +1,2 @@
+import { BrowserMockup } from "./BrowserMockup";
+export function ProjectCard({ index, name, sector, type }: { index: number; name: string; sector: string; type: string }) { return <article className={`project-card project-card--${index} reveal`}><BrowserMockup variant={index} /><div className="project-meta"><div><p>{sector} <span>·</span> {type}</p><h3>{name}</h3></div><button type="button" aria-label={`Ver proyecto demo ${name}`}>Ver proyecto <span aria-hidden="true">↗</span></button></div></article>; }

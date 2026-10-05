@@ -1,0 +1,1 @@
+export function Marquee() { const text = "DISEÑO WEB ✦ DESARROLLO ✦ E-COMMERCE ✦ EXPERIENCIAS DIGITALES ✦ "; return <div className="marquee" aria-label="Diseño web, desarrollo, e-commerce y experiencias digitales"><div><span>{text}</span><span aria-hidden="true">{text}</span></div></div>; }

@@ -1,0 +1,4 @@
+import { SectionHeading } from "./SectionHeading";
+import { ProjectCard } from "./ProjectCard";
+const projects = [["Nexo Arquitectura", "ARQUITECTURA", "SITIO WEB"], ["Lumbre", "REAL ESTATE", "LANDING PAGE"], ["Panorama", "GASTRONOMÍA", "E-COMMERCE"], ["Punto Norte", "CONSULTORÍA", "SITIO CORPORATIVO"]];
+export function Projects() { return <section className="projects section-pad" id="proyectos"><div className="container"><div className="projects-heading"><SectionHeading kicker="PROYECTOS DEMO">Algunas cosas que <em>construimos.</em></SectionHeading><p>Una muestra del tipo de experiencias digitales que podemos crear para cada negocio.</p></div><div className="projects-grid">{projects.map((p, i) => <ProjectCard key={p[0]} index={i + 1} name={p[0]} sector={p[1]} type={p[2]} />)}</div></div></section>; }

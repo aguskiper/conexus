@@ -1,0 +1,3 @@
+import { Logo } from "./Logo";
+const links = [["Inicio", "#inicio"], ["Servicios", "#servicios"], ["Proyectos", "#proyectos"], ["Nosotros", "#nosotros"], ["Contacto", "#contacto"]];
+export function Footer() { return <footer><div className="container footer-main"><div><Logo inverse /><p>Diseño y desarrollo web<br/>para empresas.</p></div><nav aria-label="Enlaces del pie">{links.map(([l,h])=><a key={h} href={h}>{l}</a>)}</nav><div className="social-placeholder"><p>Encontranos</p><span aria-disabled="true">Instagram</span><span aria-disabled="true">LinkedIn</span></div></div><div className="container footer-bottom"><p>© {new Date().getFullYear()} Conexus Digital</p><p>Hecho con ideas, código y mate <span aria-hidden="true">●</span></p></div></footer>; }

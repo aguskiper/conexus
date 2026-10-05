@@ -1,0 +1,4 @@
+import { SectionHeading } from "./SectionHeading";
+const steps = ["Conocemos tu empresa", "Diseñamos la experiencia", "Desarrollamos", "Publicamos y acompañamos"];
+const detail = ["Escuchamos, preguntamos y alineamos objetivos.", "Ordenamos contenidos y definimos cada interacción.", "Convertimos el diseño en un sitio sólido y veloz.", "Dejamos todo listo y seguimos cerca después del lanzamiento."];
+export function Process() { return <section className="process section-pad"><div className="container"><SectionHeading kicker="EL PROCESO">De una idea a una web que <em>funciona.</em></SectionHeading><div className="process-line"><div className="process-progress" />{steps.map((step, i) => <article className="process-step reveal" key={step}><div className="process-node"><span>{String(i + 1).padStart(2, "0")}</span></div><h3>{step}</h3><p>{detail[i]}</p></article>)}</div></div></section>; }
