@@ -7,6 +7,7 @@ import { Process } from "@/components/Process";
 import { Projects } from "@/components/Projects";
 import { ConnectionSection } from "@/components/ConnectionSection";
 import { About } from "@/components/About";
+import { FAQ } from "@/components/FAQ";
 import { FinalCTA } from "@/components/FinalCTA";
 import { Footer } from "@/components/Footer";
 
@@ -17,7 +18,7 @@ export default function Home() {
       <Header />
       <main id="contenido">
         <Hero /><Marquee /><Services /><Differentials /><Process />
-        <Projects /><ConnectionSection /><About /><FinalCTA />
+        <Projects /><ConnectionSection /><About /><FAQ /><FinalCTA />
       </main>
       <Footer />
     </>
