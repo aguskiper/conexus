@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProductBySlug, logCmsError } from "@/lib/cms/client";
+import { getProductBySlug, getCheckoutSettings, logCmsError } from "@/lib/cms/client";
+import { AddToCart } from "@/components/cart/AddToCart";
 import { productionCanonical, metadataImage } from "@/lib/cms/urls";
 import { ProductGallery } from "@/components/products/ProductGallery";
 import { ProductPrice, ProductAvailability } from "@/components/products/ProductPrice";
@@ -30,12 +31,15 @@ export default async function ProductPage({ params }: Props) {
   catch (error) { logCmsError("producto", error); }
   if (product === undefined) return <section className={common.page}><div className={`container ${common.empty}`}><h1>Este producto estará de vuelta pronto.</h1><p>No pudimos cargarlo en este momento. Volvé a intentarlo en unos minutos.</p><Link href="/productos" className="button button--secondary">← Volver al catálogo</Link></div></section>;
   if (!product) notFound();
+  let checkout = null;
+  try { checkout = await getCheckoutSettings(); } catch (error) { logCmsError("compra en ficha", error); }
   const images = [...new Set([product.featuredImage, ...product.gallery].filter((url): url is string => Boolean(url)))];
   return <article className={common.article}><div className="container">
     <Link className={common.back} href="/productos">← Todos los productos</Link>
     <div className={styles.detail}><ProductGallery key={product.slug} images={images} name={product.name} alt={product.featuredImageAlt} />
       <header className={styles.summary}><div className={common.cardMeta}>{product.category && <span>{product.category.name}</span>}</div><h1>{product.name}</h1>
         {product.shortDescription && <p>{product.shortDescription}</p>}<ProductPrice product={product} /><ProductAvailability product={product} />
+        {checkout?.enabled && product.stock.available && <AddToCart product={product} />}
       </header>
     </div>
     <section className={styles.description} aria-labelledby="product-description"><h2 id="product-description">Sobre este producto</h2><TipTapContent content={product.description} /></section>

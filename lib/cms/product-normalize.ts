@@ -14,7 +14,8 @@ export function parseProduct(value: unknown, visible = true): CmsProduct {
   return { name: text(data.name), slug: text(data.slug), shortDescription: text(data.shortDescription),
     price: showPrices ? decimal(data.price) : null, salePrice: showPrices ? decimal(data.salePrice) : null,
     currency: text(data.currency), showPrices,
-    stock: { managed: stock.managed, available: !stock.managed || stock.available },
+    stock: { managed: stock.managed, available: !stock.managed || stock.available,
+      ...(Number.isSafeInteger(stock.availableQuantity) && Number(stock.availableQuantity) >= 0 ? { availableQuantity: Number(stock.availableQuantity) } : {}) },
     featuredImage: safePublicUrl(data.featuredImage), featuredImageAlt: text(data.featuredImageAlt) || null,
     category: data.category ? parseCategory(data.category) : null,
     publishedAt: text(data.publishedAt), updatedAt: text(data.updatedAt) || text(data.publishedAt) };

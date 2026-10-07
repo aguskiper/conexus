@@ -2,7 +2,7 @@ import type { CmsCategory, CmsPosts } from "./types";
 export interface CmsProduct {
   name: string; slug: string; shortDescription: string;
   price: string | null; salePrice: string | null; currency: string; showPrices: boolean;
-  stock: { managed: boolean; available: boolean };
+  stock: { managed: boolean; available: boolean; availableQuantity?: number };
   featuredImage: string | null; featuredImageAlt: string | null;
   category: CmsCategory | null; publishedAt: string; updatedAt: string;
 }

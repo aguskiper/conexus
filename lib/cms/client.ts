@@ -3,6 +3,30 @@ import { CmsError, type CmsPostDetail } from "./types";
 import { parseCategories, parsePostDetail, parsePosts } from "./normalize";
 import { safePublicUrl } from "./urls";
 import { parseProducts, parseProductDetail, parseProductCategories } from "./product-normalize";
+import { parseCheckoutSettings, parseOrderReceipt } from "./checkout-normalize";
+import { CheckoutError, type OrderRequest } from "./checkout-types";
+
+export async function getCheckoutSettings() {
+  return parseCheckoutSettings(await request("/api/public/v1/checkout"));
+}
+export async function createOrder(payload: OrderRequest, key: string) {
+  try {
+    const response = await fetch(new URL("/api/public/v1/orders", cmsBaseUrl()), {
+      method: "POST", cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(15000),
+      headers: { Accept: "application/json", "Content-Type": "application/json", "Idempotency-Key": key },
+      body: JSON.stringify(payload),
+    });
+    const body: unknown = await response.json();
+    if (!response.ok) {
+      const code = (body as { error?: { code?: unknown } })?.error?.code;
+      throw new CheckoutError(typeof code === "string" && /^[A-Z_]{1,80}$/.test(code) ? code : "CMS_UNAVAILABLE", response.status);
+    }
+    return parseOrderReceipt(body);
+  } catch (error) {
+    if (error instanceof CheckoutError) throw error;
+    throw new CheckoutError("CMS_UNAVAILABLE");
+  }
+}
 
 export async function getProducts({ page = 1, limit = 12, category, q }: { page?: number; limit?: number; category?: string; q?: string } = {}) {
   const query = new URLSearchParams({ page: String(Number.isSafeInteger(page) && page > 0 ? page : 1), limit: String(Math.max(1, Math.min(50, Math.floor(limit) || 12))) });
