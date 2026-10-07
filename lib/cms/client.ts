@@ -5,6 +5,35 @@ import { safePublicUrl } from "./urls";
 import { parseProducts, parseProductDetail, parseProductCategories } from "./product-normalize";
 import { parseCheckoutSettings, parseOrderReceipt } from "./checkout-normalize";
 import { CheckoutError, type OrderRequest } from "./checkout-types";
+import { parsePaymentCheckout, parsePublicOrderStatus } from "./payment-normalize";
+import { validOrderNumber, validPublicToken } from "./payment-types";
+
+async function paymentRequest(orderNumber: string, token: string, key?: string) {
+  if (!validOrderNumber(orderNumber) || !validPublicToken(token)) throw new CheckoutError("NOT_FOUND", 404);
+  try {
+    const response = await fetch(new URL("/api/public/v1/orders/" + encodeURIComponent(orderNumber) + (key ? "/payment" : "/status"), cmsBaseUrl()), {
+      method: key ? "POST" : "GET", cache: "no-store", redirect: "manual", credentials: "omit", signal: AbortSignal.timeout(15000),
+      headers: { Accept: "application/json", Authorization: "Bearer " + token, ...(key ? { "Content-Type": "application/json", "Idempotency-Key": key } : {}) },
+      ...(key ? { body: "{}" } : {}),
+    });
+    const body: unknown = await response.json();
+    if (!response.ok) {
+      const code = (body as { error?: { code?: unknown } })?.error?.code;
+      const retryAfter = Number(response.headers.get("Retry-After") || 0);
+      throw new CheckoutError(typeof code === "string" && /^[A-Z_]{1,80}$/.test(code) ? code : "CMS_UNAVAILABLE", response.status,
+        Number.isFinite(retryAfter) ? Math.min(90, Math.max(response.status === 429 ? 3 : 0, retryAfter)) : 3);
+    }
+    return body;
+  } catch (error) { if (error instanceof CheckoutError) throw error; throw new CheckoutError("CMS_UNAVAILABLE"); }
+}
+export async function initiateOrderPayment(orderNumber: string, token: string, key: string) {
+  return parsePaymentCheckout(await paymentRequest(orderNumber, token, key));
+}
+export async function getPublicOrderStatus(orderNumber: string, token: string) {
+  const status = parsePublicOrderStatus(await paymentRequest(orderNumber, token));
+  if (status.orderNumber !== orderNumber) throw new CheckoutError("NOT_FOUND", 404);
+  return status;
+}
 
 export async function getCheckoutSettings() {
   return parseCheckoutSettings(await request("/api/public/v1/checkout"));

@@ -9,11 +9,16 @@ import { checkoutAttempt, finishAttempt, pendingAttempt } from "@/lib/cart/idemp
 import { checkoutMessage } from "@/lib/cart/errors";
 import { validateOrderRequest } from "@/lib/cart/order-validation";
 import { productAmount } from "@/lib/cart/totals";
-import type { OrderRequest } from "@/lib/cms/checkout-types";
+import type { OrderRequest, OrderReceipt } from "@/lib/cms/checkout-types";
 import { parseOrderReceipt } from "@/lib/cms/checkout-normalize";
 import { record } from "@/lib/cms/normalize";
 import { CheckoutError } from "@/lib/cms/checkout-types";
 import { attemptStorage } from "@/lib/cart/session";
+import { mercadoPagoEnabled } from "@/lib/cms/payment-types";
+import { canStorePaymentSession, getPaymentSession, savePaymentSession, type PaymentSession } from "@/lib/payment/session";
+import { retryPayment } from "@/lib/payment/client";
+import { PaymentError, paymentErrorMessage } from "@/lib/payment/errors";
+import { PaymentStatusPanel } from "@/components/payment/PaymentStatusPanel";
 import styles from "./Commerce.module.css";
 export function CheckoutPage() {
   const cart = useCart(), validation = useValidatedCart(), router = useRouter();
@@ -21,17 +26,29 @@ export function CheckoutPage() {
   const busy = useRef(false), submitted = useRef<{ payload: OrderRequest; key: string } | null>(null);
   const storage = useRef(attemptStorage(() => sessionStorage));
   const [recovery, setRecovery] = useState(false);
+  const [created, setCreated] = useState<{ orderNumber: string; receipt?: OrderReceipt; session?: PaymentSession; error?: string } | null>(null);
+  const paymentEnabled = mercadoPagoEnabled(cart.settings);
   useEffect(() => {
     let active = true;
-    queueMicrotask(() => { if (active) setRecovery(Boolean(pendingAttempt(storage.current))); });
+    queueMicrotask(() => { if (active) {
+      setRecovery(Boolean(pendingAttempt(storage.current)));
+      const session = getPaymentSession();
+      if (session?.requiresPayment && !session.cartCleared) setCreated({ orderNumber: session.orderNumber, session });
+    } });
     return () => { active = false; };
   }, []);
   const errorRef = useRef<HTMLDivElement>(null);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy.current) return;
+    if (busy.current || created) return;
+    const existingPayment = getPaymentSession();
+    if (existingPayment?.requiresPayment && !existingPayment.cartCleared) {
+      setCreated({ orderNumber: existingPayment.orderNumber, session: existingPayment });
+      return;
+    }
     busy.current = true; setProcessing(true); setError("");
     let code = "CMS_UNAVAILABLE", definitive = false, sent = false;
+    let usePayment = paymentEnabled;
     try {
       let attempt = submitted.current;
       if (!uncertain) {
@@ -45,6 +62,7 @@ export function CheckoutPage() {
         } else {
         const fresh = await validation.refresh();
         if (!fresh) throw new Error("unavailable");
+        usePayment = mercadoPagoEnabled(fresh.settings);
         if (!fresh.settings.enabled || !fresh.settings.methods.some(method => method.method === payload.shipping.method)) { code = "ECOMMERCE_DISABLED"; definitive = true; throw new Error("disabled"); }
         for (const item of payload.items) {
           const product = fresh.products.find(product => product.slug === item.slug)?.product;
@@ -59,6 +77,7 @@ export function CheckoutPage() {
         submitted.current = attempt;
       }
       if (!attempt) throw new Error("attempt");
+      if (usePayment && !canStorePaymentSession()) { code = "SESSION_UNAVAILABLE"; throw new PaymentError(code); }
       sent = true;
       const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": attempt.key }, body: JSON.stringify(attempt.payload) });
       const body = record(await response.json());
@@ -69,11 +88,41 @@ export function CheckoutPage() {
         throw new Error("order");
       }
       const receipt = parseOrderReceipt(body);
-      cart.setReceipt(receipt); cart.clearCart();
+      cart.setReceipt(receipt);
+      if (usePayment) {
+        // Desde aquí nunca se vuelve a crear el Order, aunque falle el proveedor.
+        let session: PaymentSession | undefined;
+        try {
+          if (!receipt.publicStatusToken) throw new PaymentError("TOKEN_UNAVAILABLE");
+          session = { orderNumber: receipt.orderNumber, publicStatusToken: receipt.publicStatusToken,
+            paymentAttemptKey: crypto.randomUUID(), cart: attempt.payload.items, createdAt: Date.now(),
+            cartCleared: false, rejectedRetryPending: false, requiresPayment: true };
+          if (!savePaymentSession(session)) throw new PaymentError("SESSION_UNAVAILABLE");
+          finishAttempt(storage.current);
+          submitted.current = null;
+          await retryPayment(session);
+          setCreated({ orderNumber: receipt.orderNumber, receipt, session });
+        } catch (paymentError) {
+          setCreated({ orderNumber: receipt.orderNumber, receipt, session,
+            error: paymentError instanceof PaymentError ? paymentError.code : "PROVIDER_UNAVAILABLE" });
+        }
+        return;
+      }
+      if (receipt.publicStatusToken && canStorePaymentSession()) {
+        savePaymentSession({ orderNumber: receipt.orderNumber, publicStatusToken: receipt.publicStatusToken,
+          paymentAttemptKey: crypto.randomUUID(), cart: attempt.payload.items, createdAt: Date.now(),
+          cartCleared: true, rejectedRetryPending: false, requiresPayment: false });
+      }
+      cart.clearCart();
       finishAttempt(storage.current);
       submitted.current = null;
       router.push("/pedido/confirmado");
     } catch (caught) {
+      if (caught instanceof PaymentError) {
+        setError(paymentErrorMessage(caught.code));
+        requestAnimationFrame(() => errorRef.current?.focus());
+        return;
+      }
       if (caught instanceof CheckoutError) { code = caught.code; definitive = true; }
       if (caught instanceof Error && caught.message === "PENDING_ATTEMPT") {
         setError("Hay una solicitud anterior pendiente de confirmar. Ingresá exactamente los mismos datos para reintentar, sin generar otro pedido."); setUncertain(false);
@@ -85,6 +134,7 @@ export function CheckoutPage() {
       requestAnimationFrame(() => errorRef.current?.focus());
     } finally { busy.current = false; setProcessing(false); }
   }
+  if (created) return <PaymentStatusPanel orderNumber={created.orderNumber} receipt={created.receipt} sessionOverride={created.session} initialError={created.error} mode="recovery" headingLevel={2} />;
   if (!cart.ready || (validation.loading && !Object.keys(validation.products).length)) return <p className={styles.status} role="status">Verificando tu pedido…</p>;
   if (!cart.items.length) return <div className={styles.empty}><h2>Tu carrito está vacío.</h2><Link href="/productos" className="button button--primary">Ver productos →</Link></div>;
   if (cart.settings?.enabled === false) return <div className={styles.empty}><h2>Las compras están deshabilitadas.</h2><p>Podés seguir explorando nuestros productos como catálogo.</p><Link href="/productos" className="button button--primary">Ver productos →</Link></div>;
@@ -109,7 +159,7 @@ export function CheckoutPage() {
     <label>Notas del pedido <span className={styles.note}>(opcional)</span><textarea name="notes" maxLength={1000} rows={3} disabled={processing || uncertain} /></label>
     {uncertain && <p className={styles.note}>Conservamos esta misma solicitud. Reintentá sin cambiar los datos para evitar pedidos duplicados.</p>}
     {recovery && !uncertain && <p className={styles.note}>Hay una solicitud pendiente de confirmar. Ingresá exactamente los mismos datos y notas para recuperarla sin crear otro pedido.</p>}
-    <button className="button button--primary" type="submit" disabled={processing || (!uncertain && !recovery && (validation.error || validation.loading || invalid || !methods.length))}>{processing ? "Procesando pedido…" : uncertain || recovery ? "Reintentar el mismo pedido" : "Confirmar pedido"} {!processing && <span aria-hidden="true">→</span>}</button>
-    <p className={styles.note}>Este paso registra tu pedido. No se realiza ningún pago.</p>
-  </form><OrderSummary items={cart.items} products={validation.products} currency={cart.settings?.currency || ""} /></div></>;
+    <button className="button button--primary" type="submit" disabled={processing || (!uncertain && !recovery && (validation.error || validation.loading || invalid || !methods.length))}>{processing ? paymentEnabled ? "Preparando pago…" : "Procesando pedido…" : uncertain || recovery ? "Reintentar el mismo pedido" : paymentEnabled ? "Pagar con Mercado Pago" : "Confirmar pedido"} {!processing && <span aria-hidden="true">→</span>}</button>
+    <p className={styles.note} role="status">{paymentEnabled ? "Primero registramos tu pedido. Después te llevamos a Mercado Pago para pagar de forma segura." : "Este paso registra tu pedido. No se realiza ningún pago."}</p>
+  </form><OrderSummary items={cart.items} products={validation.products} currency={cart.settings?.currency || ""} paymentEnabled={paymentEnabled} /></div></>;
 }

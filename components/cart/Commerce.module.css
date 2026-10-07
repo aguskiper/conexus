@@ -14,3 +14,8 @@
 .quantity:focus-within{outline:3px solid var(--coral);outline-offset:3px}
 .cartEnd :global(.button){width:100%}
 @media(max-width:600px){.access{padding:5px 6px;gap:3px}.access>span:first-child{font-size:20px}.access>b{min-width:20px;height:22px}}
+.paymentActions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:28px 0}
+.paymentNumber{font-size:22px;font-weight:850;overflow-wrap:anywhere}
+.paymentHeading:focus-visible{outline:3px solid var(--coral);outline-offset:6px;border-radius:10px}
+.confirmation p{overflow-wrap:anywhere}
+@media(max-width:600px){.paymentActions{flex-direction:column}.paymentActions>button,.paymentActions>a{width:100%;min-height:48px}.paymentNumber{font-size:19px}}

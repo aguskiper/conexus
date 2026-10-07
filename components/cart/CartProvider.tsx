@@ -51,7 +51,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
   const setReceipt = useCallback((value: OrderReceipt) => {
     saveReceipt(value);
-    try { sessionStorage.setItem(RECEIPT_KEY, JSON.stringify(value)); } catch { /* El contexto sigue conservando el comprobante público. */ }
+    const { orderNumber, status, total, currency } = value;
+    try { sessionStorage.setItem(RECEIPT_KEY, JSON.stringify({ orderNumber, status, total, currency })); } catch { /* El contexto sigue conservando el comprobante público. */ }
   }, []);
   return <CartContext.Provider value={{ items, ready, totalItems: items.reduce((total, item) => total + item.quantity, 0), settings, storageWarning, addItem,
     removeItem: slug => setItems(previous => previous.filter(item => item.slug !== slug)),
