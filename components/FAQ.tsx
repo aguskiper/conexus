@@ -53,6 +53,14 @@ const questions: FAQItem[] = [
     question: "¿Qué es el SEO y por qué es importante?",
     answer: <>SEO significa optimización para motores de búsqueda. Es el conjunto de prácticas que ayuda a que buscadores como Google puedan encontrar, comprender e indexar correctamente un sitio web.<br /><br />Desarrollamos nuestros sitios teniendo en cuenta buenas prácticas técnicas de SEO y dejamos la web preparada para estar disponible en los motores de búsqueda.<br /><br />A partir de ahí, el posicionamiento puede potenciarse mediante una estrategia de marketing digital, generación de contenido, SEO, publicidad en buscadores, redes sociales y otras acciones destinadas a atraer potenciales clientes.</>,
   },
+  {
+    question: "¿Mi tienda online se entrega lista para empezar a vender?",
+    answer: <>Sí. Entregamos tu e-commerce configurado y preparado para comenzar a recibir ventas. Incluimos la carga inicial de hasta 10 productos sin costo adicional y dejamos Mercado Pago configurado como medio de pago.<br /><br />Si necesitás otros medios de pago, integraciones especiales o plataformas externas de envíos y logística, evaluamos la implementación y, dependiendo de su complejidad, puede presupuestarse por separado.</>,
+  },
+  {
+    question: "¿Voy a poder administrar mi tienda y cargar productos?",
+    answer: <>Sí. Nuestros e-commerce son autogestionables, por lo que vas a poder agregar y modificar productos, precios, imágenes, stock y demás información de tu tienda.<br /><br />Al entregar el proyecto, te guiamos en el proceso de administración y carga de productos para que puedas gestionar las tareas habituales de tu tienda de forma independiente.</>,
+  },
 ];
 
 export function FAQ() {
