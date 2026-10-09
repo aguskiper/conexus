@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+.next
+dist
+.wrangler
+.vinext
+.sites-runtime
+.env
+.env.*
+!.env.example
+*.log
+*.tar.gz
